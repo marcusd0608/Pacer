@@ -33,7 +33,7 @@ export interface FeedbackEvent { id: string; sid: string; kind: "ask" | "confuse
 export type Mode = "standard" | "focus" | "guided" | "example";
 export interface Prefs { mode: Mode; textSize: number; reduceMotion: boolean; popups: boolean; scores: Record<Mode, number> }
 export const DEFAULT_PREFS: Prefs = { mode: "standard", textSize: 100, reduceMotion: false, popups: true, scores: { standard: 0, focus: 0, guided: 0, example: 0 } };
-export type AIKind = "explain" | "why" | "simplify" | "example" | "snip" | "followup" | "another" | "summarize" | "catchup" | "deeper" | "clarify" | "graph" | "visual" | "quiz";
+export type AIKind = "explain" | "why" | "simplify" | "example" | "snip" | "followup" | "another" | "summarize" | "catchup" | "deeper" | "clarify" | "graph" | "visual" | "quiz" | "recap";
 export interface AIRequest {
   kind: AIKind; selected: string[]; context: string[]; topicTitle?: string; topics?: { title: string; summary: string }[];
   mode: Mode; image?: string; slide?: boolean; question?: string; history?: { role: "user" | "assistant"; text: string }[]; detail?: "short" | "long"; stats?: string;

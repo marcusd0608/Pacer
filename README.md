@@ -45,3 +45,7 @@ Supabase SQL is applied separately from Git and Vercel. For a new environment, c
 The textbox workflow was verified locally for range formatting, resize, undo/redo, reload, and reopening a saved lecture. Connector snapping, reconnection at 125% zoom, deletion, undo/redo, and reload were also verified locally.
 
 After applying the collaboration migration, verify with a signed-in teacher and two distinct student accounts. Check that disabling contributions blocks further writes while preserving drafts, and that private annotations reopen for their owner and are inaccessible to other accounts. Hosted multi-account verification is pending. The prototype still uses a browser-held teacher token and a public Realtime channel for general live classroom traffic. Database authorization for collaboration does not secure the legacy broadcast channel.
+
+## Launch readiness
+
+Rate limits on the AI route, anonymous usage metrics, a waitlist, privacy/terms/data-request pages and the post-class package are in this repository. See [launch checklist](docs/LAUNCH_CHECKLIST.md) (do this first), [outreach kit](docs/OUTREACH_KIT.md), [pricing](docs/PRICING.md) and [acquisition readiness](docs/ACQUISITION_READINESS.md). Run `supabase/launch_readiness.sql` once in the Supabase SQL editor. `npm test`, `npm run test:e2e` and `npm run test:a11y` run the unit, smoke and accessibility checks; CI runs all of them on every pull request. Optional variables: `NEXT_PUBLIC_CONTACT_EMAIL`, `AI_LIMIT_PER_MINUTE`, `AI_LIMIT_PER_DAY`, `AI_GLOBAL_DAILY_CAP`.

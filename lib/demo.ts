@@ -64,7 +64,20 @@ function demoTool(r: AIRequest): AIResponse {
   return { text: "", data: { question: "Practice: solve 3x + 2 = 11", answer: "3", hint: "Subtract 2 from both sides, then divide by 3." }, source: "demo" };
 }
 
+export function demoRecap(r: AIRequest): AIResponse {
+  const lines = r.selected.length ? r.selected : r.context;
+  const covered = lines.slice(0, 6).join("; ") || "no notes yet";
+  return { text: "", source: "demo", data: {
+    recap: `Today's lesson covered: ${covered}. (Demo response: connect the AI key for a written recap.)`,
+    keyPoints: lines.slice(0, 5),
+    practice: [{ question: "Practice: solve 3x + 2 = 11", answer: "x = 3" }, { question: "Practice: solve 2x - 4 = 10", answer: "x = 7" }, { question: "Practice: solve 5x = 35", answer: "x = 7" }],
+    catchup: "Read the notes in order, then try the first practice question and compare your answer with the key.",
+    nextTime: "Check which step got the most 'still confused' taps and revisit it.",
+  } };
+}
+
 export function demoAnswer(r: AIRequest): AIResponse {
+  if (r.kind === "recap") return demoRecap(r);
   if (r.kind === "graph" || r.kind === "visual" || r.kind === "quiz") return demoTool(r);
   if (r.image && !r.selected.length) return { text: "Demo response: reading handwriting needs the AI key. With it, Pacer reads what the teacher drew (like 2x = 10) and explains it (x = 5).", source: "demo" };
   const sel = r.selected[0] ?? "";

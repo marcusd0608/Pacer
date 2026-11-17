@@ -1,4 +1,5 @@
 "use client";
+import { SiteFooter } from "@/components/SiteFooter";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
@@ -81,7 +82,7 @@ export default function Home() {
       <div className={`relative mx-auto grid max-w-[1280px] items-start gap-6 px-6 pb-8 pt-6 ${teaching ? "max-w-xl" : "lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)_minmax(0,1fr)]"}`}>
       <section className={`relative flex flex-col items-center text-center ${teaching ? "" : "lg:col-start-2 lg:row-start-1"}`}>
         <h1 className="display text-[34px] md:text-[44px]">{teaching ? "Teaching dashboard" : <>{user ? `Hi, ${user.name.split(" ")[0]}.` : "The classroom,"}<br />{user ? "Ready to learn?" : "in sync."}</>}</h1>
-        {!teaching && <p className="mt-3 text-base text-smoke">One lesson, with every student moving through it their own way.</p>}
+        {!teaching && <p className="mt-3 text-base text-graphite">One lesson, with every student moving through it their own way.</p>}
 
         {!teaching || !lobby ? (
           <div className="mt-5 w-full space-y-4 text-left md:mt-8">
@@ -121,6 +122,7 @@ export default function Home() {
       {teaching && !lobby && <TeachingDashboard key={user?.id ?? "guest"} userId={user?.id} continuing={continuing} error={hostError} onContinue={(lecture) => void host(lecture)} />}
       </>
       )}
+      <SiteFooter />
     </main>
   );
 }

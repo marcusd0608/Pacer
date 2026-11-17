@@ -1,14 +1,23 @@
 import { NextResponse } from "next/server";
 import { demoAnswer } from "@/lib/demo";
 import { buildJson, buildSummarize, buildUser, JSON_KINDS, SYSTEM } from "@/lib/prompt";
-import type { AIRequest, AIResponse } from "@/lib/types";
+import { checkAiLimits } from "@/lib/rateLimit";
+import type { AIKind, AIRequest, AIResponse, Mode } from "@/lib/types";
+
+const KINDS: AIKind[] = ["explain", "why", "simplify", "example", "snip", "followup", "another", "summarize", "catchup", "deeper", "clarify", "graph", "visual", "quiz", "recap"];
+const MODES: Mode[] = ["standard", "focus", "guided", "example"];
+const MAX_BODY = 1_200_000;
 
 const clip = (a: string[] | undefined, n: number) => (a ?? []).slice(0, n).map((s) => String(s).slice(0, 600));
 
 export async function POST(req: Request) {
   let b: AIRequest;
+  if (Number(req.headers.get("content-length") ?? 0) > MAX_BODY) return NextResponse.json({ text: "", source: "demo", error: "Request too large" }, { status: 413 });
   try { b = (await req.json()) as AIRequest; } catch { return NextResponse.json({ text: "", source: "demo", error: "Bad request" }, { status: 400 }); }
-  b = { ...b, image: typeof b.image === "string" ? b.image : undefined, selected: clip(b.selected, 12), context: clip(b.context, 40), question: b.question?.slice(0, 500), history: (b.history ?? []).filter((h) => typeof h.text === "string" && h.text.trim()).slice(-6) };
+  if (!b || !KINDS.includes(b.kind) || !MODES.includes(b.mode) || !Array.isArray(b.selected) || !Array.isArray(b.context)) return NextResponse.json({ text: "", source: "demo", error: "Bad request" }, { status: 400 });
+  const limited = await checkAiLimits(req);
+  if (limited) return NextResponse.json({ text: "", source: "demo", error: limited }, { status: 429, headers: { "retry-after": "60" } });
+  b = { ...b, image: typeof b.image === "string" ? b.image : undefined, selected: clip(b.selected, 12), context: clip(b.context, 40), question: b.question?.slice(0, 500), topicTitle: b.topicTitle?.slice(0, 200), stats: b.stats?.slice(0, 400), history: (b.history ?? []).filter((h) => typeof h.text === "string" && h.text.trim()).slice(-6) };
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return NextResponse.json(demoAnswer(b));
   try {

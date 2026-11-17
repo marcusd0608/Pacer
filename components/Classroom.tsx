@@ -26,6 +26,8 @@ import { mergeProfiles, pullLearning, pushProfile } from "@/lib/cloudProfile";
 import { useAuth } from "@/lib/useAuth";
 import { pushLesson, saveLesson } from "@/lib/lessons";
 import { ArchiveSheet } from "./ArchiveSheet";
+import { PostClassSheet } from "./PostClassSheet";
+import { track, trackOnce } from "@/lib/track";
 import { Logo } from "./Logo";
 import { RichText } from "./RichText";
 import { Popup, PopupData } from "./Popup";
@@ -44,7 +46,7 @@ const INK_COLORS = [
 const HIGHLIGHT_COLORS = [
   ["Yellow", "#facc15"], ["Blue", "#38bdf8"], ["Pink", "#f472b6"], ["Green", "#4ade80"],
 ];
-const BOARD_TOOLS: [BoardTool, string][] = [["select", "Select"], ["pen", "Pen"], ["highlight", "Highlighter"], ["erase", "Eraser"]];
+const BOARD_TOOLS: [BoardTool, string][] = [["select", "Select"], ["pen", "Pen"], ["highlight", "Highlight"], ["erase", "Eraser"]];
 
 export function Classroom({ code }: { code: string }) {
   const sp = useSearchParams();
@@ -167,6 +169,7 @@ export function Classroom({ code }: { code: string }) {
   const [placement, setPlacement] = useState<Exclude<BlockKind, "connector">>();
   const [showInsights, setShowInsights] = useState(false);
   const [showFinish, setShowFinish] = useState(false);
+  const [showRecap, setShowRecap] = useState(false);
   const [savingLecture, setSavingLecture] = useState(false);
   const [lectureMessage, setLectureMessage] = useState("");
   const [showPages, setShowPages] = useState(true);
@@ -502,9 +505,10 @@ export function Classroom({ code }: { code: string }) {
   // ---- student: AI ----
   const selectedBlocks = (a: Anchor | null) => (a ? blocks.filter((b) => a.ids.includes(b.id)) : []);
   const ask = async (a: Anchor, k: AIKind, question?: string, guided?: boolean) => {
+    track(a.source === "snip" ? "snip" : "ask", "student", code);
     if (!state) return;
     const sel = selectedBlocks(a); const tp = state.topics.find((t) => t.id === sel[0]?.topicId);
-    const label: Record<AIKind, string> = { explain: "Explain this", why: "Why this step?", simplify: "Simplify", example: "Give an example", snip: "Explain in depth", followup: question ?? "", another: "Try another explanation", deeper: "More depth", catchup: "", summarize: "", clarify: "", graph: "Graph it", visual: "Visualize it", quiz: "Quiz me" };
+    const label: Record<AIKind, string> = { explain: "Explain this", why: "Why this step?", simplify: "Simplify", example: "Give an example", snip: "Explain in depth", followup: question ?? "", another: "Try another explanation", deeper: "More depth", catchup: "", summarize: "", clarify: "", graph: "Graph it", visual: "Visualize it", quiz: "Quiz me", recap: "" };
     const history = msgs.slice(-6).filter((m) => m.text.trim()).map((m) => ({ role: m.role, text: m.text })).filter((m, i, arr) => !(i === 0 && m.role === "assistant" && arr.length > 0));
     setMsgs((m) => [...m, { role: "user", text: guided ? "Step by step" : label[k] }]); setLoading(true); setError(""); setFed("");
     sendEvent("ask", sel[0]?.id ?? null, sel[0]?.topicId ?? null); rec("asks");
@@ -594,12 +598,15 @@ export function Classroom({ code }: { code: string }) {
   }, [state?.topics.length]);
 
   useEffect(() => { try { setDemoMode(localStorage.getItem("pacer:demo") === "1"); } catch { /* ignore */ } }, []);
+  const roomLoaded = !!state;
+  useEffect(() => { if (roomLoaded) trackOnce(isTeacher ? "room_open" : "room_join", isTeacher ? "teacher" : "student", code); }, [roomLoaded, isTeacher, code]);
   const toggleDemo = () => setDemoMode((v) => { const n = !v; try { localStorage.setItem("pacer:demo", n ? "1" : "0"); } catch { /* ignore */ } return n; });
   const postQuestion = () => {
     if (!qText.trim() || !qAnswer.trim()) return;
     const id = uid();
     try { localStorage.setItem(`pacer:key:${code}`, JSON.stringify({ id, answer: qAnswer.trim() })); } catch { /* ignore */ }
     mutate((s) => ({ ...s, question: { id, text: qText.trim(), ts: Date.now(), open: true } }));
+    track("checkin_post", "teacher", code);
     setQText(""); setQAnswer("");
   };
   const closeQuestion = () => {
@@ -618,9 +625,10 @@ export function Classroom({ code }: { code: string }) {
   const clearBoard = (what: "pen" | "all") => {
     clearTimeout(inkTimer.current);
     inkHistory.current = { undo: [], redo: [] };
+    track("board_clear", "teacher", code);
     mutate((s) => archiveBoard(s, what));
   };
-  const revisit = (blockId: string) => mutate((s) => ({ ...s, spotlight: { blockId, ts: Date.now() } }));
+  const revisit = (blockId: string) => { track("revisit", "teacher", code); mutate((s) => ({ ...s, spotlight: { blockId, ts: Date.now() } })); };
   const spotTs = state?.spotlight?.ts;
   useEffect(() => {
     const sp = state?.spotlight; if (!sp || isTeacher || browseTopic) return;
@@ -711,6 +719,7 @@ export function Classroom({ code }: { code: string }) {
         <div className="basis-full md:hidden" aria-hidden="true" />
         {isTeacher ? (
           <>
+            <button className="btn btn-outline btn-sm" onClick={() => setShowRecap(true)}>Post-class package</button>
             <button className="btn btn-outline btn-sm notebook-accent-blue" aria-expanded={showInvite} onClick={() => setShowInvite((v) => !v)}>Invite · {code}</button>
             <button className={`btn btn-sm ${state.ended ? "btn-primary" : "btn-outline notebook-accent-rose"}`} onClick={() => setShowFinish(true)}>{state.ended ? "Save lecture" : "End lecture"}</button>
           </>
@@ -1209,6 +1218,7 @@ export function Classroom({ code }: { code: string }) {
       <AnimatedPanel open={showArchive} motion="drawer" reduced={prefs.reduceMotion}>
         <ArchiveSheet boards={state.archive ?? []} onClose={() => setShowArchive(false)} />
       </AnimatedPanel>
+      {isTeacher && showRecap && <PostClassSheet state={state} onClose={() => setShowRecap(false)} />}
       <AnimatedPanel open={showSettings} motion="drawer" reduced={prefs.reduceMotion}>
         <SettingsSheet prefs={prefs} update={update} reset={reset} onClose={() => setShowSettings(false)} />
       </AnimatedPanel>
